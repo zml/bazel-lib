@@ -150,7 +150,10 @@ def _tar_impl(ctx):
     ctx.actions.run(
         executable = bsdtar.tarinfo.binary,
         inputs = depset(direct = inputs, transitive = [bsdtar.default.files] + [
-            src[DefaultInfo].default_runfiles.files
+            depset([
+                src[DefaultInfo].files_to_run.runfiles_manifest,
+                src[DefaultInfo].files_to_run.repo_mapping_manifest,
+            ], transitive = [src[DefaultInfo].default_runfiles.files])
             for src in ctx.attr.srcs
         ]),
         outputs = [out],
@@ -234,6 +237,8 @@ def _mtree_impl(ctx):
         workspace_name = str(ctx.workspace_name)
 
         content.add(_mtree_line(runfiles_dir, type = "dir"))
+        content.add(_mtree_line("{}/MANIFEST".format(runfiles_dir), type = "file", content = default_info.files_to_run.runfiles_manifest.path))
+        content.add(_mtree_line("{}/_repo_mapping".format(runfiles_dir), type = "file", content = default_info.files_to_run.repo_mapping_manifest.path))
         content.add_all(
             s.default_runfiles.files,
             expand_directories = True,
