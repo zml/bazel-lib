@@ -236,7 +236,12 @@ def _mtree_impl(ctx):
         workspace_name = str(ctx.workspace_name)
 
         content.add(_mtree_line(runfiles_dir, type = "dir"))
-        content.add(_mtree_line("{}/_repo_mapping".format(runfiles_dir), type = "file", content = default_info.files_to_run.repo_mapping_manifest.path))
+
+        files_to_run = default_info.files_to_run
+        # repo mapping file is available only after Bazel 7.0.0
+        if files_to_run and getattr(files_to_run, "repo_mapping_manifest", None):
+            content.add(_mtree_line("{}/_repo_mapping".format(runfiles_dir), type = "file", content = files_to_run.repo_mapping_manifest.path))
+
         content.add_all(
             s.default_runfiles.files,
             expand_directories = True,
