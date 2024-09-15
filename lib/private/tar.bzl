@@ -125,6 +125,24 @@ def _calculate_runfiles_dir(default_info):
         return manifest.short_path[:-9]
     fail("manifest path {} seems malformed".format(manifest.short_path))
 
+def _calculate_runfiles_depsets(ctx):
+    depsets = []
+    for src in ctx.attr.srcs:
+        files_to_add = []
+
+        if src[DefaultInfo].files_to_run:
+            repo_mapping_manifest = getattr(src[DefaultInfo].files_to_run, "repo_mapping_manifest", None)
+            if repo_mapping_manifest:
+                files_to_add.append(repo_mapping_manifest)
+
+        depsets.append(
+            depset(
+                files_to_add,
+                transitive = [src[DefaultInfo].default_runfiles.files]
+            )
+        )
+    return depsets
+
 def _tar_impl(ctx):
     bsdtar = ctx.toolchains[TAR_TOOLCHAIN_TYPE]
     inputs = ctx.files.srcs[:]
@@ -149,12 +167,7 @@ def _tar_impl(ctx):
 
     ctx.actions.run(
         executable = bsdtar.tarinfo.binary,
-        inputs = depset(direct = inputs, transitive = [bsdtar.default.files] + [
-            depset([
-                src[DefaultInfo].files_to_run.repo_mapping_manifest,
-            ], transitive = [src[DefaultInfo].default_runfiles.files])
-            for src in ctx.attr.srcs
-        ]),
+        inputs = depset(direct = inputs, transitive = [bsdtar.default.files] + _calculate_runfiles_depsets(ctx)),
         outputs = [out],
         arguments = [args],
         mnemonic = "Tar",
